@@ -2,21 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Traffic Load Sonification with Smooth Volume</title>
+<title>Traffic Load Sonification</title>
 <style>
-  body { margin: 0; overflow: hidden; font-family: monospace; }
-  canvas { display: block; }
-  #infoBox {
-    position: fixed; top: 10px; left: 10px;
-    background: rgba(0,0,0,0.75); color: white;
-    padding: 8px 12px; border-radius: 6px; font-size: 14px;
-    pointer-events: none;
-  }
-  #soundToggle {
-    position: fixed; top: 10px; right: 10px;
-    padding: 6px 12px; font-size: 14px; border-radius: 4px;
-    border: none; cursor: pointer; background: rgba(255,255,255,0.85);
-  }
+body { margin: 0; overflow: hidden; font-family: monospace; }
+canvas { display: block; }
+#infoBox {
+  position: fixed; top: 10px; left: 10px;
+  background: rgba(0,0,0,0.75); color: white;
+  padding: 8px 12px; border-radius: 6px; font-size: 14px;
+  pointer-events: none;
+}
+#soundToggle {
+  position: fixed; top: 10px; right: 10px;
+  padding: 6px 12px; font-size: 14px; border-radius: 4px;
+  border: none; cursor: pointer; background: rgba(255,255,255,0.85);
+}
 </style>
 </head>
 <body>
@@ -34,81 +34,69 @@ const soundToggleBtn = document.getElementById("soundToggle");
 let soundEnabled = false;
 let currentTraffic = 0;
 
-// Preload audio players
-const trafficPlayer0 = new Audio("assets/level0.mp3");
-const trafficPlayer1 = new Audio("assets/level1.mp3");
-const trafficPlayer2 = new Audio("assets/level2.mp3");
-const trafficPlayer3 = new Audio("assets/level3.mp3");
-const trafficPlayer4 = new Audio("assets/level4.mp3");
-const trafficPlayer5 = new Audio("assets/level5.mp3");
-const birdPlayer     = new Audio("assets/birds.mp3");
+const audioPlayers = [];
+["level0","level1","level2","level3","level4","level5","birds"].forEach(f=>{
+  const a=new Audio(`assets/${f}.mp3`);
+  a.loop=true; a.volume=0; audioPlayers.push(a);
+});
+let currentVolumes = new Array(audioPlayers.length).fill(0);
+let targetVolumes = new Array(audioPlayers.length).fill(0);
 
-const audioPlayers = [trafficPlayer0, trafficPlayer1, trafficPlayer2, trafficPlayer3, trafficPlayer4, trafficPlayer5, birdPlayer];
-
-// Loop and start muted
-audioPlayers.forEach(p=>{ p.loop=true; p.volume=0; });
-
-// Current and target volumes
-let currentVolumes = [0,0,0,0,0,0,0]; 
-let targetVolumes = [0,0,0,0,0,0,0];
-
-soundToggleBtn.addEventListener("click", () => {
-  soundEnabled = !soundEnabled;
-  soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON" : "OFF"}`;
+soundToggleBtn.addEventListener("click", ()=>{
+  soundEnabled=!soundEnabled;
+  soundToggleBtn.textContent = `Sound: ${soundEnabled?"ON":"OFF"}`;
   if(soundEnabled){
-    audioPlayers.forEach(p => { p.currentTime=0; p.play().catch(()=>{}); });
+    audioPlayers.forEach(p=>p.play().catch(()=>{}));
   } else {
-    audioPlayers.forEach(p => { p.pause(); });
+    audioPlayers.forEach(p=>p.pause());
   }
 });
 
-// Load map image
 const img = new Image();
-img.src = "assets/traffic.png";
+img.src="assets/traffic.png";
 let scale=1, offsetY=0, imageLoaded=false;
-
-img.onload = function(){ imageLoaded=true; resizeCanvas(); }
+img.onload = () => { imageLoaded=true; resizeCanvas(); requestAnimationFrame(drawImageLoop); }
 
 function resizeCanvas(){
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
   if(!imageLoaded) return;
   scale = canvas.width/img.width;
-  const drawHeight = img.height*scale;
-  offsetY = (canvas.height-drawHeight)/2;
-  drawImage();
-}
-function drawImage(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.drawImage(img,0,offsetY,canvas.width,img.height*scale);
+  offsetY=(canvas.height-img.height*scale)/2;
 }
 window.addEventListener("resize", resizeCanvas);
+
+function drawImageLoop(){
+  if(imageLoaded){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,offsetY,canvas.width,img.height*scale);
+  }
+  requestAnimationFrame(drawImageLoop);
+}
 
 // Traffic hue bounds
 const minHue = 340;
 const maxHue = 60;
 
-// Pointer handler for mouse and touch
-function handlePointer(x, y){
+function handlePointer(x,y){
   if(!imageLoaded) return;
-
   const rect = canvas.getBoundingClientRect();
-  const mouseX = x - rect.left;
-  const mouseY = y - rect.top;
+  const px = x - rect.left;
+  const py = y - rect.top;
 
-  const radius = 5;
+  const radius=5;
   let totalR=0, totalG=0, totalB=0, count=0;
 
-  for(let dx=-radius; dx<=radius; dx++){
-    for(let dy=-radius; dy<=radius; dy++){
-      if(dx*dx+dy*dy <= radius*radius){
-        const px = mouseX+dx, py = mouseY+dy;
-        if(px>=0 && py>=0 && px<canvas.width && py<canvas.height){
-          const pixel = ctx.getImageData(px,py,1,1).data;
+  for(let dx=-radius;dx<=radius;dx++){
+    for(let dy=-radius;dy<=radius;dy++){
+      if(dx*dx+dy*dy<=radius*radius){
+        const cx = px+dx, cy = py+dy;
+        if(cx>=0 && cy>=0 && cx<canvas.width && cy<canvas.height){
+          const pixel = ctx.getImageData(cx,cy,1,1).data;
           const hsv = rgbToHsv(pixel[0],pixel[1],pixel[2]);
-          const hue = hsv.h;
+          const hue=hsv.h;
           if(hsv.s>25 && ((hue>=0 && hue<=maxHue)||(hue>=minHue && hue<=360))){
-            totalR += pixel[0]; totalG += pixel[1]; totalB += pixel[2]; count++;
+            totalR+=pixel[0]; totalG+=pixel[1]; totalB+=pixel[2]; count++;
           }
         }
       }
@@ -116,78 +104,61 @@ function handlePointer(x, y){
   }
 
   if(count>0){
-    const avgR = totalR/count;
-    const avgG = totalG/count;
-    const avgB = totalB/count;
-    const hsv = rgbToHsv(avgR,avgG,avgB);
+    const avgR=totalR/count, avgG=totalG/count, avgB=totalB/count;
+    const hsv=rgbToHsv(avgR,avgG,avgB);
     currentTraffic = hueToTraffic(hsv.h);
-  } else {
-    currentTraffic = 0;
-  }
+  } else currentTraffic=0;
 
-  infoBox.textContent = `Traffic: ${(currentTraffic*100).toFixed(1)}%`;
+  infoBox.textContent=`Traffic: ${(currentTraffic*100).toFixed(1)}%`;
 }
 
-// Mouse support
-canvas.addEventListener("mousemove", e => handlePointer(e.clientX, e.clientY));
+// Mouse
+canvas.addEventListener("mousemove", e=>handlePointer(e.clientX,e.clientY));
 
-// Touch support
-canvas.addEventListener("touchstart", e => {
-  e.preventDefault();
-  for(const touch of e.touches) handlePointer(touch.clientX, touch.clientY);
-}, {passive:false});
+// Touch
+canvas.addEventListener("touchstart", e=>{ e.preventDefault(); for(const t of e.touches) handlePointer(t.clientX,t.clientY); }, {passive:false});
+canvas.addEventListener("touchmove", e=>{ e.preventDefault(); for(const t of e.touches) handlePointer(t.clientX,t.clientY); }, {passive:false});
 
-canvas.addEventListener("touchmove", e => {
-  e.preventDefault();
-  for(const touch of e.touches) handlePointer(touch.clientX, touch.clientY);
-}, {passive:false});
-
-// Smooth volume updates with 1-second lag
+// Smooth volume
 function updateVolumes(){
   if(soundEnabled){
-    // recalc target volumes based on current traffic
-    targetVolumes[0] = currentTraffic<=0.25 ? 0.2+0.8*(currentTraffic/0.25) : 1;
-    targetVolumes[1] = currentTraffic<0.2 ? 0 : currentTraffic<=0.4 ? (currentTraffic-0.2)/0.2 : 1;
-    targetVolumes[2] = currentTraffic<0.4 ? 0 : currentTraffic<=0.6 ? (currentTraffic-0.4)/0.2 : 1;
-    targetVolumes[3] = currentTraffic<0.6 ? 0 : currentTraffic<=0.75 ? (currentTraffic-0.6)/0.15 : 1;
-    targetVolumes[4] = currentTraffic<0.75 ? 0 : currentTraffic<=0.85 ? (currentTraffic-0.75)/0.1 : 1;
-    targetVolumes[5] = currentTraffic<0.8 ? 0 : currentTraffic<=1 ? (currentTraffic-0.8)/0.2 : 1;
-    targetVolumes[6] = Math.max(0,0.02*(1-currentTraffic)); // reduced bird level
-  } else {
-    targetVolumes.fill(0);
-  }
+    targetVolumes[0] = currentTraffic<=0.25?0.2+0.8*(currentTraffic/0.25):1;
+    targetVolumes[1] = currentTraffic<0.2?0: currentTraffic<=0.4?(currentTraffic-0.2)/0.2:1;
+    targetVolumes[2] = currentTraffic<0.4?0: currentTraffic<=0.6?(currentTraffic-0.4)/0.2:1;
+    targetVolumes[3] = currentTraffic<0.6?0: currentTraffic<=0.75?(currentTraffic-0.6)/0.15:1;
+    targetVolumes[4] = currentTraffic<0.75?0: currentTraffic<=0.85?(currentTraffic-0.75)/0.1:1;
+    targetVolumes[5] = currentTraffic<0.8?0: currentTraffic<=1?(currentTraffic-0.8)/0.2:1;
+    targetVolumes[6] = Math.max(0,0.02*(1-currentTraffic));
+  } else targetVolumes.fill(0);
 
-  const dt = 1/60; // approx 60fps
-  const lagTime = 1; // 1 second lag
+  const dt=1/60, lagTime=1;
   for(let i=0;i<audioPlayers.length;i++){
-    currentVolumes[i] += (targetVolumes[i]-currentVolumes[i]) * dt/lagTime;
-    audioPlayers[i].volume = currentVolumes[i];
+    currentVolumes[i]+=(targetVolumes[i]-currentVolumes[i])*dt/lagTime;
+    audioPlayers[i].volume=currentVolumes[i];
   }
 
   requestAnimationFrame(updateVolumes);
 }
 updateVolumes();
 
-// RGB to HSV
+// Helpers
 function rgbToHsv(r,g,b){
-  r/=255; g/=255; b/=255;
-  const max=Math.max(r,g,b), min=Math.min(r,g,b), delta=max-min;
-  let h=0,s=max===0?0:delta/max,v=max;
-  if(delta!==0){
-    if(max===r) h=(g-b)/delta + (g<b?6:0);
-    else if(max===g) h=(b-r)/delta+2;
-    else h=(r-g)/delta+4;
+  r/=255;g/=255;b/=255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
+  let h=0,s=max===0?0:d/max,v=max;
+  if(d!==0){
+    if(max===r) h=(g-b)/d + (g<b?6:0);
+    else if(max===g) h=(b-r)/d+2;
+    else h=(r-g)/d+4;
     h*=60;
   }
   return {h:Math.round(h),s:Math.round(s*100),v:Math.round(v*100)};
 }
-
 function hueToTraffic(h){
   let hAdj=h; if(h>=minHue) hAdj-=360;
-  const traffic = (maxHue-hAdj)/(maxHue-(minHue-360));
+  const traffic=(maxHue-hAdj)/(maxHue-(minHue-360));
   return Math.max(0,Math.min(1,traffic));
 }
 </script>
-
 </body>
 </html>
