@@ -34,26 +34,47 @@ const soundToggleBtn = document.getElementById("soundToggle");
 let soundEnabled = false;
 let currentTraffic = 0;
 
-const audioPlayers = [];
-["level0","level1","level2","level3","level4","level5","birds"].forEach(f=>{
-  const a=new Audio(`assets/${f}.mp3`);
-  a.loop=true; a.volume=0; audioPlayers.push(a);
-});
-let currentVolumes = new Array(audioPlayers.length).fill(0);
-let targetVolumes = new Array(audioPlayers.length).fill(0);
+// --- Web Audio Setup ---
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const audioFiles = ["level0","level1","level2","level3","level4","level5","birds"];
+const audioBuffers = [];
+const gainNodes = [];
 
-soundToggleBtn.addEventListener("click", ()=>{
-  soundEnabled=!soundEnabled;
-  soundToggleBtn.textContent = `Sound: ${soundEnabled?"ON":"OFF"}`;
-  if(soundEnabled){
-    audioPlayers.forEach(p=>p.play().catch(()=>{}));
-  } else {
-    audioPlayers.forEach(p=>p.pause());
+// Load audio files
+async function loadAudioFiles() {
+  for (const f of audioFiles) {
+    const res = await fetch(`assets/${f}.mp3`);
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = await audioContext.decodeAudioData(arrayBuffer);
+    audioBuffers.push(buffer);
+
+    const gainNode = audioContext.createGain();
+    gainNode.gain.value = 0; // start muted
+    gainNode.connect(audioContext.destination);
+    gainNodes.push(gainNode);
   }
-});
+}
+loadAudioFiles();
 
+// Start all audio buffers (looping) after user interaction
+function startAudio() {
+  if (audioContext.state === 'suspended') audioContext.resume();
+
+  audioBuffers.forEach((buffer, i) => {
+    if (!gainNodes[i].source) {
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      source.connect(gainNodes[i]);
+      source.start();
+      gainNodes[i].source = source; // store for future reference
+    }
+  });
+}
+
+// --- Image Setup ---
 const img = new Image();
-img.src="assets/traffic.png";
+img.src = "assets/traffic.png";
 let scale=1, offsetY=0, imageLoaded=false;
 img.onload = () => { imageLoaded=true; resizeCanvas(); requestAnimationFrame(drawImageLoop); }
 
@@ -74,7 +95,7 @@ function drawImageLoop(){
   requestAnimationFrame(drawImageLoop);
 }
 
-// Traffic hue bounds
+// --- Traffic Detection ---
 const minHue = 340;
 const maxHue = 60;
 
@@ -112,14 +133,23 @@ function handlePointer(x,y){
   infoBox.textContent=`Traffic: ${(currentTraffic*100).toFixed(1)}%`;
 }
 
-// Mouse
+// Mouse & Touch
 canvas.addEventListener("mousemove", e=>handlePointer(e.clientX,e.clientY));
-
-// Touch
 canvas.addEventListener("touchstart", e=>{ e.preventDefault(); for(const t of e.touches) handlePointer(t.clientX,t.clientY); }, {passive:false});
 canvas.addEventListener("touchmove", e=>{ e.preventDefault(); for(const t of e.touches) handlePointer(t.clientX,t.clientY); }, {passive:false});
 
-// Smooth volume
+// --- Sound Toggle ---
+soundToggleBtn.addEventListener("click", ()=>{
+  soundEnabled = !soundEnabled;
+  soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON":"OFF"}`;
+
+  if(soundEnabled) startAudio();
+});
+
+// --- Smooth Volume Updates ---
+const currentVolumes = new Array(audioFiles.length).fill(0);
+const targetVolumes = new Array(audioFiles.length).fill(0);
+
 function updateVolumes(){
   if(soundEnabled){
     targetVolumes[0] = currentTraffic<=0.25?0.2+0.8*(currentTraffic/0.25):1;
@@ -132,16 +162,16 @@ function updateVolumes(){
   } else targetVolumes.fill(0);
 
   const dt=1/60, lagTime=1;
-  for(let i=0;i<audioPlayers.length;i++){
-    currentVolumes[i]+=(targetVolumes[i]-currentVolumes[i])*dt/lagTime;
-    audioPlayers[i].volume=currentVolumes[i];
+  for(let i=0;i<gainNodes.length;i++){
+    currentVolumes[i] += (targetVolumes[i]-currentVolumes[i])*dt/lagTime;
+    gainNodes[i].gain.value = currentVolumes[i];
   }
 
   requestAnimationFrame(updateVolumes);
 }
 updateVolumes();
 
-// Helpers
+// --- Helpers ---
 function rgbToHsv(r,g,b){
   r/=255;g/=255;b/=255;
   const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
