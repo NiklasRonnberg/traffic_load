@@ -35,13 +35,14 @@ let soundEnabled = false;
 let currentTraffic = 0;
 
 // --- Web Audio Setup ---
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let audioContext;
+let audioStarted = false;
 const audioFiles = ["level0","level1","level2","level3","level4","level5","birds"];
 const audioBuffers = [];
 const gainNodes = [];
 
-// Load audio files
-async function loadAudioFiles() {
+// Load audio files (called only after first user gesture)
+async function loadAudio() {
   for (const f of audioFiles) {
     const res = await fetch(`assets/${f}.mp3`);
     const arrayBuffer = await res.arrayBuffer();
@@ -54,36 +55,36 @@ async function loadAudioFiles() {
     gainNodes.push(gainNode);
   }
 }
-loadAudioFiles();
 
-// Start all audio buffers (looping) after user interaction
+// Start all audio buffers looping
 function startAudio() {
-  if (audioContext.state === 'suspended') audioContext.resume();
-
+  if (audioStarted) return;
+  audioStarted = true;
   audioBuffers.forEach((buffer, i) => {
-    if (!gainNodes[i].source) {
-      const source = audioContext.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(gainNodes[i]);
-      source.start();
-      gainNodes[i].source = source; // store for future reference
-    }
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(gainNodes[i]);
+    source.start();
   });
 }
 
 // --- Image Setup ---
 const img = new Image();
 img.src = "assets/traffic.png";
-let scale=1, offsetY=0, imageLoaded=false;
-img.onload = () => { imageLoaded=true; resizeCanvas(); requestAnimationFrame(drawImageLoop); }
+let scale = 1, offsetY = 0, imageLoaded = false;
+img.onload = () => { 
+  imageLoaded = true; 
+  resizeCanvas(); 
+  requestAnimationFrame(drawImageLoop); 
+}
 
 function resizeCanvas(){
-  canvas.width=window.innerWidth;
-  canvas.height=window.innerHeight;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
   if(!imageLoaded) return;
-  scale = canvas.width/img.width;
-  offsetY=(canvas.height-img.height*scale)/2;
+  scale = canvas.width / img.width;
+  offsetY = (canvas.height - img.height * scale) / 2;
 }
 window.addEventListener("resize", resizeCanvas);
 
@@ -105,19 +106,19 @@ function handlePointer(x,y){
   const px = x - rect.left;
   const py = y - rect.top;
 
-  const radius=5;
-  let totalR=0, totalG=0, totalB=0, count=0;
+  const radius = 5;
+  let totalR = 0, totalG = 0, totalB = 0, count = 0;
 
-  for(let dx=-radius;dx<=radius;dx++){
-    for(let dy=-radius;dy<=radius;dy++){
-      if(dx*dx+dy*dy<=radius*radius){
+  for(let dx=-radius; dx<=radius; dx++){
+    for(let dy=-radius; dy<=radius; dy++){
+      if(dx*dx+dy*dy <= radius*radius){
         const cx = px+dx, cy = py+dy;
         if(cx>=0 && cy>=0 && cx<canvas.width && cy<canvas.height){
           const pixel = ctx.getImageData(cx,cy,1,1).data;
           const hsv = rgbToHsv(pixel[0],pixel[1],pixel[2]);
-          const hue=hsv.h;
-          if(hsv.s>25 && ((hue>=0 && hue<=maxHue)||(hue>=minHue && hue<=360))){
-            totalR+=pixel[0]; totalG+=pixel[1]; totalB+=pixel[2]; count++;
+          const hue = hsv.h;
+          if(hsv.s > 25 && ((hue>=0 && hue<=maxHue)||(hue>=minHue && hue<=360))){
+            totalR += pixel[0]; totalG += pixel[1]; totalB += pixel[2]; count++;
           }
         }
       }
@@ -125,25 +126,32 @@ function handlePointer(x,y){
   }
 
   if(count>0){
-    const avgR=totalR/count, avgG=totalG/count, avgB=totalB/count;
-    const hsv=rgbToHsv(avgR,avgG,avgB);
+    const avgR = totalR/count, avgG = totalG/count, avgB = totalB/count;
+    const hsv = rgbToHsv(avgR,avgG,avgB);
     currentTraffic = hueToTraffic(hsv.h);
-  } else currentTraffic=0;
+  } else currentTraffic = 0;
 
-  infoBox.textContent=`Traffic: ${(currentTraffic*100).toFixed(1)}%`;
+  infoBox.textContent = `Traffic: ${(currentTraffic*100).toFixed(1)}%`;
 }
 
 // Mouse & Touch
-canvas.addEventListener("mousemove", e=>handlePointer(e.clientX,e.clientY));
-canvas.addEventListener("touchstart", e=>{ e.preventDefault(); for(const t of e.touches) handlePointer(t.clientX,t.clientY); }, {passive:false});
-canvas.addEventListener("touchmove", e=>{ e.preventDefault(); for(const t of e.touches) handlePointer(t.clientX,t.clientY); }, {passive:false});
+canvas.addEventListener("mousemove", e => handlePointer(e.clientX,e.clientY));
+canvas.addEventListener("touchstart", e => { e.preventDefault(); for(const t of e.touches) handlePointer(t.clientX,t.clientY); }, {passive:false});
+canvas.addEventListener("touchmove", e => { e.preventDefault(); for(const t of e.touches) handlePointer(t.clientX,t.clientY); }, {passive:false});
 
 // --- Sound Toggle ---
-soundToggleBtn.addEventListener("click", ()=>{
-  soundEnabled = !soundEnabled;
-  soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON":"OFF"}`;
+soundToggleBtn.addEventListener("click", async () => {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    await loadAudio(); // load files only after user gesture
+  }
 
-  if(soundEnabled) startAudio();
+  if (audioContext.state === "suspended") await audioContext.resume();
+
+  soundEnabled = !soundEnabled;
+  soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON" : "OFF"}`;
+
+  if (soundEnabled) startAudio();
 });
 
 // --- Smooth Volume Updates ---
@@ -152,17 +160,17 @@ const targetVolumes = new Array(audioFiles.length).fill(0);
 
 function updateVolumes(){
   if(soundEnabled){
-    targetVolumes[0] = currentTraffic<=0.25?0.2+0.8*(currentTraffic/0.25):1;
-    targetVolumes[1] = currentTraffic<0.2?0: currentTraffic<=0.4?(currentTraffic-0.2)/0.2:1;
-    targetVolumes[2] = currentTraffic<0.4?0: currentTraffic<=0.6?(currentTraffic-0.4)/0.2:1;
-    targetVolumes[3] = currentTraffic<0.6?0: currentTraffic<=0.75?(currentTraffic-0.6)/0.15:1;
-    targetVolumes[4] = currentTraffic<0.75?0: currentTraffic<=0.85?(currentTraffic-0.75)/0.1:1;
-    targetVolumes[5] = currentTraffic<0.8?0: currentTraffic<=1?(currentTraffic-0.8)/0.2:1;
-    targetVolumes[6] = Math.max(0,0.02*(1-currentTraffic));
+    targetVolumes[0] = currentTraffic<=0.25 ? 0.2+0.8*(currentTraffic/0.25) : 1;
+    targetVolumes[1] = currentTraffic<0.2 ? 0 : currentTraffic<=0.4 ? (currentTraffic-0.2)/0.2 : 1;
+    targetVolumes[2] = currentTraffic<0.4 ? 0 : currentTraffic<=0.6 ? (currentTraffic-0.4)/0.2 : 1;
+    targetVolumes[3] = currentTraffic<0.6 ? 0 : currentTraffic<=0.75 ? (currentTraffic-0.6)/0.15 : 1;
+    targetVolumes[4] = currentTraffic<0.75 ? 0 : currentTraffic<=0.85 ? (currentTraffic-0.75)/0.1 : 1;
+    targetVolumes[5] = currentTraffic<0.8 ? 0 : currentTraffic<=1 ? (currentTraffic-0.8)/0.2 : 1;
+    targetVolumes[6] = Math.max(0, 0.02*(1-currentTraffic));
   } else targetVolumes.fill(0);
 
   const dt=1/60, lagTime=1;
-  for(let i=0;i<gainNodes.length;i++){
+  for(let i=0; i<gainNodes.length; i++){
     currentVolumes[i] += (targetVolumes[i]-currentVolumes[i])*dt/lagTime;
     gainNodes[i].gain.value = currentVolumes[i];
   }
@@ -173,22 +181,24 @@ updateVolumes();
 
 // --- Helpers ---
 function rgbToHsv(r,g,b){
-  r/=255;g/=255;b/=255;
-  const max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
-  let h=0,s=max===0?0:d/max,v=max;
+  r/=255; g/=255; b/=255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max-min;
+  let h=0, s=max===0?0:d/max, v=max;
   if(d!==0){
     if(max===r) h=(g-b)/d + (g<b?6:0);
     else if(max===g) h=(b-r)/d+2;
     else h=(r-g)/d+4;
-    h*=60;
+    h *= 60;
   }
-  return {h:Math.round(h),s:Math.round(s*100),v:Math.round(v*100)};
+  return {h: Math.round(h), s: Math.round(s*100), v: Math.round(v*100)};
 }
+
 function hueToTraffic(h){
-  let hAdj=h; if(h>=minHue) hAdj-=360;
-  const traffic=(maxHue-hAdj)/(maxHue-(minHue-360));
-  return Math.max(0,Math.min(1,traffic));
+  let hAdj = h; if(h>=minHue) hAdj -= 360;
+  const traffic = (maxHue-hAdj)/(maxHue-(minHue-360));
+  return Math.max(0, Math.min(1, traffic));
 }
 </script>
+
 </body>
 </html>
