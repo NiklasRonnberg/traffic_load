@@ -160,7 +160,6 @@ function rgbToHsv(r,g,b){
   return {h:Math.round(h), s:Math.round(s*100), v:Math.round(v*100)};
 }
 
-// Dark hue = high traffic
 function hueToTraffic(h){
   let hAdj = h;
   if(h>=minHue) hAdj -= 360;
