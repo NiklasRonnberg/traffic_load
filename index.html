@@ -24,18 +24,26 @@
 <canvas id="mapCanvas"></canvas>
 <div id="infoBox">Traffic: ---</div>
 <button id="soundToggle">Sound: OFF</button>
+<button id="trafficBtn">Traffic sounds: OFF</button>
+<button id="synthBtn">Synthesized sounds: OFF</button>
 
 <script>
-const canvas = document.getElementById("mapCanvas");
-const ctx = canvas.getContext("2d", { willReadFrequently: true });
-const infoBox = document.getElementById("infoBox");
-const soundToggleBtn = document.getElementById("soundToggle");
+  const canvas = document.getElementById("mapCanvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const infoBox = document.getElementById("infoBox");
+  const soundToggleBtn = document.getElementById("soundToggle");
+  
+  let soundEnabled = false;
+  let currentTraffic = 0;
 
-let soundEnabled = false;
-let currentTraffic = 0;
-
-let audioCtx;
-let trafficNoise = null;
+  let soundEnabledTraffic = false;   // audioPlayers
+  let soundEnabledSynth = false;     // trafficNoise
+  
+  let trafficNoise = null;
+  let audioCtx = null;               // for trafficNoise
+    
+  let audioCtx = null;
+  let trafficNoise = null;
 
 
 // Preload audio
@@ -52,22 +60,50 @@ audioPlayers.forEach(p => { p.loop = true; p.volume = 0; });
 
 let currentVolumes = [0,0,0,0,0,0,0];
 let targetVolumes  = [0,0,0,0,0,0,0];
+const trafficBtn = document.getElementById("trafficBtn");
+const synthBtn = document.getElementById("synthBtn");
 
-soundToggleBtn.addEventListener("click", async () => {
-  soundEnabled = !soundEnabled;
-  soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON":"OFF"}`;
-  if(soundEnabled){
-    //audioPlayers.forEach(p => { p.currentTime=0; p.play().catch(()=>{}); });
-    if(!audioCtx){
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  // Buttons
+  soundToggleBtn.addEventListener("click", async () => {
+    soundEnabled = !soundEnabled;
+    soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON":"OFF"}`;
+    if(soundEnabled){
+      audioPlayers.forEach(p => { p.currentTime=0; p.play().catch(()=>{}); });
+      if(!audioCtx){
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      await audioCtx.resume();
+      trafficNoise = await trafficSound(0.5,1500);
+    } else {
+      audioPlayers.forEach(p => { p.pause(); });
+      trafficNoise?.stop();
     }
-    await audioCtx.resume();
-    trafficNoise = await trafficSound(0.5,1500);
-  } else {
-    //audioPlayers.forEach(p => { p.pause(); });
-    trafficNoise?.stop();
-  }
-});
+  });
+  trafficBtn.addEventListener("click", () => {
+    soundEnabledTraffic = !soundEnabledTraffic;
+    trafficBtn.textContent = `Traffic sounds: ${soundEnabledTraffic ? "ON":"OFF"}`;
+    if(soundEnabledTraffic){
+      audioPlayers.forEach(p => {
+        p.currentTime = 0;
+        p.play().catch(()=>{});
+      });
+    } else {
+      audioPlayers.forEach(p => p.pause());
+    }
+  });
+  synthBtn.addEventListener("click", async () => {
+    soundEnabledSynth = !soundEnabledSynth;
+    synthBtn.textContent = `Synthesized sounds: ${soundEnabledSynth ? "ON":"OFF"}`;
+    if(soundEnabledSynth){
+      if(!audioCtx){
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      await audioCtx.resume();
+      trafficNoise = await trafficSound(0.5, 1500);
+    } else {
+      trafficNoise?.stop();
+    }
+  });
 
 // Load map image
 const img = new Image();
