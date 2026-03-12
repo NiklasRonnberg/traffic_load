@@ -34,6 +34,9 @@ const soundToggleBtn = document.getElementById("soundToggle");
 let soundEnabled = false;
 let currentTraffic = 0;
 
+let audioCtx;
+
+
 // Preload audio
 const audioPlayers = [
   new Audio("assets/level0.mp3"),
@@ -53,9 +56,16 @@ soundToggleBtn.addEventListener("click", () => {
   soundEnabled = !soundEnabled;
   soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON":"OFF"}`;
   if(soundEnabled){
-    audioPlayers.forEach(p => { p.currentTime=0; p.play().catch(()=>{}); });
+    //audioPlayers.forEach(p => { p.currentTime=0; p.play().catch(()=>{}); });
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    await audioCtx.resume();
+    trafficNoise = trafficSound(0.5,1500);
+    trafficNoise.start();
   } else {
-    audioPlayers.forEach(p => { p.pause(); });
+    //audioPlayers.forEach(p => { p.pause(); });
+    trafficNoise?.stop();
   }
 });
 
@@ -165,6 +175,61 @@ function hueToTraffic(h){
   if(h>=minHue) hAdj -= 360;
   const traffic = (maxHue - hAdj)/(maxHue - (minHue-360));
   return Math.max(0, Math.min(1, traffic));
+}
+
+function trafficSound(soundLevel = 0.5, cutoffFreq = 1500){
+
+  if(!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+
+  const bufferSize = 4096;
+  const pinkNode = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+
+  let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+
+  pinkNode.onaudioprocess = function(e){
+    const output = e.outputBuffer.getChannelData(0);
+
+    for(let i=0;i<bufferSize;i++){
+      const white = Math.random()*2 - 1;
+
+      b0 = 0.99886*b0 + white*0.0555179;
+      b1 = 0.99332*b1 + white*0.0750759;
+      b2 = 0.96900*b2 + white*0.1538520;
+      b3 = 0.86650*b3 + white*0.3104856;
+      b4 = 0.55000*b4 + white*0.5329522;
+      b5 = -0.7616*b5 - white*0.0168980;
+
+      const pink = b0+b1+b2+b3+b4+b5+b6 + white*0.5362;
+      b6 = white*0.115926;
+
+      output[i] = pink * 0.11;
+    }
+  };
+
+  // Bandpass filter
+  const bandpass = audioCtx.createBiquadFilter();
+  bandpass.type = "bandpass";
+  bandpass.frequency.value = cutoffFreq;
+  bandpass.Q.value = 1;
+
+  // Output gain
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.value = soundLevel;
+
+  // Connect graph
+  pinkNode.connect(bandpass);
+  bandpass.connect(gainNode);
+  gainNode.connect(audioCtx.destination);
+
+  pinkNode.start?.();
+
+  return {
+    setLevel(v){ gainNode.gain.value = v; },
+    setCutoff(f){ bandpass.frequency.value = f; },
+    stop(){ pinkNode.disconnect(); }
+  };
 }
 </script>
 
