@@ -12,11 +12,14 @@
     padding: 8px 12px; border-radius: 6px; font-size: 14px;
     pointer-events: none;
   }
-  #soundToggle {
-    position: fixed; top: 10px; right: 10px;
+  button {
+    position: fixed; top: 10px;
     padding: 6px 12px; font-size: 14px; border-radius: 4px;
     border: none; cursor: pointer; background: rgba(255,255,255,0.85);
   }
+  #soundToggle { right: 10px; }
+  #trafficBtn { right: 160px; }
+  #synthBtn { right: 310px; }
 </style>
 </head>
 <body>
@@ -28,25 +31,21 @@
 <button id="synthBtn">Synthesized sounds: OFF</button>
 
 <script>
-  const canvas = document.getElementById("mapCanvas");
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const infoBox = document.getElementById("infoBox");
-  const soundToggleBtn = document.getElementById("soundToggle");
-  
-  let soundEnabled = false;
-  let currentTraffic = 0;
+const canvas = document.getElementById("mapCanvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+const infoBox = document.getElementById("infoBox");
+const soundToggleBtn = document.getElementById("soundToggle");
+const trafficBtn = document.getElementById("trafficBtn");
+const synthBtn = document.getElementById("synthBtn");
 
-  let soundEnabledTraffic = false;   // audioPlayers
-  let soundEnabledSynth = false;     // trafficNoise
-  
-  let trafficNoise = null;
-  let audioCtx = null;               // for trafficNoise
-    
-  let audioCtx = null;
-  let trafficNoise = null;
+let soundEnabled = false;
+let soundEnabledTraffic = false;
+let soundEnabledSynth = false;
+let currentTraffic = 0;
 
+let audioCtx = null;
+let trafficNoise = null;
 
-// Preload audio
 const audioPlayers = [
   new Audio("assets/level0.mp3"),
   new Audio("assets/level1.mp3"),
@@ -58,58 +57,50 @@ const audioPlayers = [
 ];
 audioPlayers.forEach(p => { p.loop = true; p.volume = 0; });
 
+let trafficNoiseLevel = 0;
+let audioPlayersLevel = 0;
 let currentVolumes = [0,0,0,0,0,0,0];
 let targetVolumes  = [0,0,0,0,0,0,0];
-const trafficBtn = document.getElementById("trafficBtn");
-const synthBtn = document.getElementById("synthBtn");
 
-  // Buttons
-  soundToggleBtn.addEventListener("click", async () => {
-    soundEnabled = !soundEnabled;
-    soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON":"OFF"}`;
-    if(soundEnabled){
-      audioPlayers.forEach(p => { p.currentTime=0; p.play().catch(()=>{}); });
-      if(!audioCtx){
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      await audioCtx.resume();
-      trafficNoise = await trafficSound(0.5,1500);
-    } else {
-      audioPlayers.forEach(p => { p.pause(); });
-      trafficNoise?.stop();
-    }
-  });
-  trafficBtn.addEventListener("click", () => {
-    soundEnabledTraffic = !soundEnabledTraffic;
-    trafficBtn.textContent = `Traffic sounds: ${soundEnabledTraffic ? "ON":"OFF"}`;
-    if(soundEnabledTraffic){
-      audioPlayers.forEach(p => {
-        p.currentTime = 0;
-        p.play().catch(()=>{});
-      });
-    } else {
-      audioPlayers.forEach(p => p.pause());
-    }
-  });
-  synthBtn.addEventListener("click", async () => {
-    soundEnabledSynth = !soundEnabledSynth;
-    synthBtn.textContent = `Synthesized sounds: ${soundEnabledSynth ? "ON":"OFF"}`;
-    if(soundEnabledSynth){
-      if(!audioCtx){
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      await audioCtx.resume();
-      trafficNoise = await trafficSound(0.5, 1500);
-    } else {
-      trafficNoise?.stop();
-    }
-  });
+soundToggleBtn.addEventListener("click", () => {
+  soundEnabled = !soundEnabled;
+  soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON" : "OFF"}`;
+  updateAllVolumes();
+});
 
-// Load map image
+trafficBtn.addEventListener("click", () => {
+  soundEnabledTraffic = !soundEnabledTraffic;
+  trafficBtn.textContent = `Traffic sounds: ${soundEnabledTraffic ? "ON" : "OFF"}`;
+  audioPlayersLevel = soundEnabledTraffic ? 1 : 0;
+  updateAllVolumes();
+});
+
+synthBtn.addEventListener("click", async () => {
+  soundEnabledSynth = !soundEnabledSynth;
+  synthBtn.textContent = `Synthesized sounds: ${soundEnabledSynth ? "ON" : "OFF"}`;
+  trafficNoiseLevel = soundEnabledSynth ? 1 : 0;
+  if(soundEnabledSynth && !trafficNoise){
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
+    trafficNoise = await trafficSound(trafficNoiseLevel, 1500);
+  }
+  updateAllVolumes();
+});
+
+function updateAllVolumes(){
+  if(trafficNoise){
+    trafficNoise.setLevel(soundEnabled ? trafficNoiseLevel : 0);
+  }
+  audioPlayers.forEach(p => {
+    p.volume = soundEnabled ? audioPlayersLevel : 0;
+    if(soundEnabled && audioPlayersLevel > 0 && p.paused) p.play().catch(()=>{});
+    if(!soundEnabled || audioPlayersLevel === 0) p.pause();
+  });
+}
+
 const img = new Image();
 img.src = "assets/traffic.png";
-let scale=1, offsetY=0, imageLoaded=false;
-
+let scale = 1, offsetY = 0, imageLoaded = false;
 img.onload = function(){ imageLoaded=true; resizeCanvas(); }
 
 function resizeCanvas(){
@@ -120,6 +111,7 @@ function resizeCanvas(){
   offsetY = (canvas.height - img.height*scale)/2;
   drawImage();
 }
+
 function drawImage(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.drawImage(img,0,offsetY,canvas.width,img.height*scale);
@@ -129,17 +121,13 @@ window.addEventListener("resize", resizeCanvas);
 const minHue = 340;
 const maxHue = 70;
 
-// Mouse movement: max-weighted traffic
 canvas.addEventListener("mousemove", function(event){
   if(!imageLoaded) return;
-
   const rect = canvas.getBoundingClientRect();
   const mouseX = event.clientX - rect.left;
   const mouseY = event.clientY - rect.top;
   const radius = 25;
-
   let maxWeightedTraffic = 0;
-
   for(let dx=-radius; dx<=radius; dx++){
     for(let dy=-radius; dy<=radius; dy++){
       const dist = Math.sqrt(dx*dx + dy*dy);
@@ -150,11 +138,9 @@ canvas.addEventListener("mousemove", function(event){
           const pixel = ctx.getImageData(px, py, 1, 1).data;
           const hsv = rgbToHsv(pixel[0], pixel[1], pixel[2]);
           const hue = hsv.h;
-
           if(hsv.s>25 && ((hue>=0 && hue<=maxHue)||(hue>=minHue && hue<=360))){
             const trafficValue = hueToTraffic(hue);
-            // Distance factor: closer = bigger contribution
-            const distanceFactor = 1 - dist/radius; // linear smooth ramp
+            const distanceFactor = 1 - dist/radius;
             const weightedTraffic = trafficValue * distanceFactor;
             maxWeightedTraffic = Math.max(maxWeightedTraffic, weightedTraffic);
           }
@@ -162,12 +148,10 @@ canvas.addEventListener("mousemove", function(event){
       }
     }
   }
-
   currentTraffic = maxWeightedTraffic;
   infoBox.textContent = `Traffic: ${(currentTraffic*100).toFixed(1)}%`;
 });
 
-// Smooth volume updates
 function updateVolumes(){
   if(soundEnabled){
     targetVolumes[0] = currentTraffic<=0.25 ? 0.2+0.8*(currentTraffic/0.25) : 1;
@@ -184,19 +168,16 @@ function updateVolumes(){
   } else {
     targetVolumes.fill(0);
   }
-
   const dt = 1/60;
   const lagTime = 1;
   for(let i=0;i<audioPlayers.length;i++){
     currentVolumes[i] += (targetVolumes[i]-currentVolumes[i])*dt/lagTime;
     audioPlayers[i].volume = currentVolumes[i];
   }
-
   requestAnimationFrame(updateVolumes);
 }
 updateVolumes();
 
-// RGB -> HSV
 function rgbToHsv(r,g,b){
   r/=255; g/=255; b/=255;
   const max=Math.max(r,g,b), min=Math.min(r,g,b), delta=max-min;
@@ -217,72 +198,46 @@ function hueToTraffic(h){
   return Math.max(0, Math.min(1, traffic));
 }
 
-
-
-
-
 async function trafficSound(soundLevel = 0.5, cutoffFreq = 1500){
-
   const processorCode = `
-  class PinkNoiseProcessor extends AudioWorkletProcessor {
-
+  class PinkNoiseProcessor extends AudioWorkletProcessor{
     constructor(){
       super();
       this.b0=0; this.b1=0; this.b2=0;
       this.b3=0; this.b4=0; this.b5=0; this.b6=0;
     }
-
     process(inputs, outputs){
-
       const output = outputs[0][0];
-
       for(let i=0;i<output.length;i++){
-
         const white = Math.random()*2 - 1;
-
         this.b0 = 0.99886*this.b0 + white*0.0555179;
         this.b1 = 0.99332*this.b1 + white*0.0750759;
         this.b2 = 0.96900*this.b2 + white*0.1538520;
         this.b3 = 0.86650*this.b3 + white*0.3104856;
         this.b4 = 0.55000*this.b4 + white*0.5329522;
         this.b5 = -0.7616*this.b5 - white*0.0168980;
-
-        const pink =
-          this.b0 + this.b1 + this.b2 +
-          this.b3 + this.b4 + this.b5 +
-          this.b6 + white*0.5362;
-
+        const pink = this.b0+this.b1+this.b2+this.b3+this.b4+this.b5+this.b6+white*0.5362;
         this.b6 = white*0.115926;
-
-        output[i] = pink * 0.11;
+        output[i] = pink*0.11;
       }
-
       return true;
     }
   }
-
   registerProcessor("pink-noise-processor", PinkNoiseProcessor);
   `;
-
   const blob = new Blob([processorCode], { type: "application/javascript" });
   const url = URL.createObjectURL(blob);
-
   await audioCtx.audioWorklet.addModule(url);
-
   const noiseNode = new AudioWorkletNode(audioCtx, "pink-noise-processor");
-
   const bandpass = audioCtx.createBiquadFilter();
   bandpass.type = "bandpass";
   bandpass.frequency.value = cutoffFreq;
   bandpass.Q.value = 1;
-
   const gainNode = audioCtx.createGain();
   gainNode.gain.value = soundLevel;
-
   noiseNode.connect(bandpass);
   bandpass.connect(gainNode);
   gainNode.connect(audioCtx.destination);
-
   return {
     setLevel(v){ gainNode.gain.value = v; },
     setCutoff(f){ bandpass.frequency.value = f; },
