@@ -62,7 +62,6 @@ soundToggleBtn.addEventListener("click", async () => {
     }
     await audioCtx.resume();
     trafficNoise = trafficSound(0.5,1500);
-    trafficNoise.start();
   } else {
     //audioPlayers.forEach(p => { p.pause(); });
     trafficNoise?.stop();
