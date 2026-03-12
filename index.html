@@ -140,6 +140,10 @@ function updateVolumes(){
     targetVolumes[4] = currentTraffic<0.75 ? 0 : currentTraffic<=0.85 ? (currentTraffic-0.75)/0.1 : 1;
     targetVolumes[5] = currentTraffic<0.8 ? 0 : currentTraffic<=1 ? (currentTraffic-0.8)/0.2 : 1;
     targetVolumes[6] = Math.max(0,0.02*(1-currentTraffic));
+    if(trafficNoise){
+      trafficNoise.setLevel(currentTraffic * 0.5);
+      trafficNoise.setCutoff(400 + currentTraffic * 3000);
+    }
   } else {
     targetVolumes.fill(0);
   }
