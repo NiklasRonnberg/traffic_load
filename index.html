@@ -52,7 +52,7 @@ audioPlayers.forEach(p => { p.loop = true; p.volume = 0; });
 let currentVolumes = [0,0,0,0,0,0,0];
 let targetVolumes  = [0,0,0,0,0,0,0];
 
-soundToggleBtn.addEventListener("click", () => {
+soundToggleBtn.addEventListener("click", async () => {
   soundEnabled = !soundEnabled;
   soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON":"OFF"}`;
   if(soundEnabled){
