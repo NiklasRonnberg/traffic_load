@@ -88,14 +88,37 @@ synthBtn.addEventListener("click", async () => {
 });
 
 function updateAllVolumes(){
+  // trafficNoise gain fade
   if(trafficNoise){
-    trafficNoise.setLevel(soundEnabled ? trafficNoiseLevel : 0);
+    if(audioCtx){
+      const gainNode = trafficNoise._gainNode; // we will store it when creating trafficNoise
+      const now = audioCtx.currentTime;
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.linearRampToValueAtTime(soundEnabled ? trafficNoiseLevel : 0, now + 1);
+    }
   }
+
+  // audioPlayers gain fade
   audioPlayers.forEach(p => {
-    p.volume = soundEnabled ? audioPlayersLevel : 0;
-    if(soundEnabled && audioPlayersLevel > 0 && p.paused) p.play().catch(()=>{});
-    if(!soundEnabled || audioPlayersLevel === 0) p.pause();
+    const target = soundEnabled ? audioPlayersLevel : 0;
+    // interpolate volume over 1 second
+    const step = (target - p.volume) / 60; // 60 frames ≈ 1 second
+    let count = 0;
+    const fade = () => {
+      if(count < 60){
+        p.volume += step;
+        count++;
+        requestAnimationFrame(fade);
+      } else {
+        p.volume = target;
+        if(p.volume === 0) p.pause();
+        else if(!p.paused) p.play().catch(()=>{});
+      }
+    }
+    if(target > 0 && p.paused) p.play().catch(()=>{});
+    fade();
   });
+
 }
 
 const img = new Image();
@@ -200,49 +223,56 @@ function hueToTraffic(h){
 
 async function trafficSound(soundLevel = 0.5, cutoffFreq = 1500){
   const processorCode = `
-  class PinkNoiseProcessor extends AudioWorkletProcessor{
-    constructor(){
-      super();
-      this.b0=0; this.b1=0; this.b2=0;
-      this.b3=0; this.b4=0; this.b5=0; this.b6=0;
-    }
-    process(inputs, outputs){
-      const output = outputs[0][0];
-      for(let i=0;i<output.length;i++){
-        const white = Math.random()*2 - 1;
-        this.b0 = 0.99886*this.b0 + white*0.0555179;
-        this.b1 = 0.99332*this.b1 + white*0.0750759;
-        this.b2 = 0.96900*this.b2 + white*0.1538520;
-        this.b3 = 0.86650*this.b3 + white*0.3104856;
-        this.b4 = 0.55000*this.b4 + white*0.5329522;
-        this.b5 = -0.7616*this.b5 - white*0.0168980;
-        const pink = this.b0+this.b1+this.b2+this.b3+this.b4+this.b5+this.b6+white*0.5362;
-        this.b6 = white*0.115926;
-        output[i] = pink*0.11;
+    class PinkNoiseProcessor extends AudioWorkletProcessor{
+      constructor(){ super(); this.b0=0; this.b1=0; this.b2=0; this.b3=0; this.b4=0; this.b5=0; this.b6=0; }
+      process(inputs, outputs){
+        const output = outputs[0][0];
+        for(let i=0;i<output.length;i++){
+          const white = Math.random()*2 - 1;
+          this.b0 = 0.99886*this.b0 + white*0.0555179;
+          this.b1 = 0.99332*this.b1 + white*0.0750759;
+          this.b2 = 0.96900*this.b2 + white*0.1538520;
+          this.b3 = 0.86650*this.b3 + white*0.3104856;
+          this.b4 = 0.55000*this.b4 + white*0.5329522;
+          this.b5 = -0.7616*this.b5 - white*0.0168980;
+          const pink = this.b0+this.b1+this.b2+this.b3+this.b4+this.b5+this.b6+white*0.5362;
+          this.b6 = white*0.115926;
+          output[i] = pink*0.11;
+        }
+        return true;
       }
-      return true;
     }
-  }
-  registerProcessor("pink-noise-processor", PinkNoiseProcessor);
+    registerProcessor("pink-noise-processor", PinkNoiseProcessor);
   `;
   const blob = new Blob([processorCode], { type: "application/javascript" });
   const url = URL.createObjectURL(blob);
   await audioCtx.audioWorklet.addModule(url);
+
   const noiseNode = new AudioWorkletNode(audioCtx, "pink-noise-processor");
+
   const bandpass = audioCtx.createBiquadFilter();
   bandpass.type = "bandpass";
   bandpass.frequency.value = cutoffFreq;
   bandpass.Q.value = 1;
+
   const gainNode = audioCtx.createGain();
   gainNode.gain.value = soundLevel;
+
   noiseNode.connect(bandpass);
   bandpass.connect(gainNode);
   gainNode.connect(audioCtx.destination);
-  return {
-    setLevel(v){ gainNode.gain.value = v; },
+
+  const trafficObj = {
+    _gainNode: gainNode, // store gainNode for fades
+    setLevel(v){
+      const now = audioCtx.currentTime;
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.linearRampToValueAtTime(v, now + 1); // 1-second fade
+    },
     setCutoff(f){ bandpass.frequency.value = f; },
     stop(){ noiseNode.disconnect(); }
   };
+  return trafficObj;
 }
 </script>
 
