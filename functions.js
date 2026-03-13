@@ -53,8 +53,14 @@ soundToggleBtn.addEventListener("click", () => {
     }
 });
 
-synthToggleBtn.addEventListener("click", () => {
-    initAudio();
+synthToggleBtn.addEventListener("click", async () => {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        await createSyntSound(); // now await is valid because handler is async
+    }
+    if (audioContext.state === "suspended") {
+        await audioContext.resume();
+    }
     synthEnabled = !synthEnabled;
     synthToggleBtn.textContent = `Synth: ${synthEnabled ? "ON":"OFF"}`;
 });
@@ -91,23 +97,23 @@ canvas.addEventListener("mousemove", function(event){
 
     for(let dx=-radius; dx<=radius; dx++){
         for(let dy=-radius; dy<=radius; dy++){
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if(dist <= radius){
-            const px = Math.round(mouseX + dx);
-            const py = Math.round(mouseY + dy);
-            if(px>=0 && py>=0 && px<canvas.width && py<canvas.height){
-            const pixel = ctx.getImageData(px, py, 1, 1).data;
-            const hsv = rgbToHsv(pixel[0], pixel[1], pixel[2]);
-            const hue = hsv.h;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if(dist <= radius){
+                const px = Math.round(mouseX + dx);
+                const py = Math.round(mouseY + dy);
+                if(px>=0 && py>=0 && px<canvas.width && py<canvas.height){
+                    const pixel = ctx.getImageData(px, py, 1, 1).data;
+                    const hsv = rgbToHsv(pixel[0], pixel[1], pixel[2]);
+                    const hue = hsv.h;
 
-            if(hsv.s>25 && ((hue>=0 && hue<=maxHue)||(hue>=minHue && hue<=360))){
-                const trafficValue = hueToTraffic(hue);
-                const distanceFactor = 1 - dist/radius;
-                const weightedTraffic = trafficValue * distanceFactor;
-                maxWeightedTraffic = Math.max(maxWeightedTraffic, weightedTraffic);
+                    if(hsv.s>25 && ((hue>=0 && hue<=maxHue)||(hue>=minHue && hue<=360))){
+                        const trafficValue = hueToTraffic(hue);
+                        const distanceFactor = 1 - dist/radius;
+                        const weightedTraffic = trafficValue * distanceFactor;
+                        maxWeightedTraffic = Math.max(maxWeightedTraffic, weightedTraffic);
+                    }
+                }
             }
-            }
-        }
         }
     }
 
@@ -138,7 +144,7 @@ function updateVolumes(){
     }
     if (synthGain && lfo) {
         let lag = 0.5;
-        if (synthEnable) {
+        if (synthEnabled) {
             setSynthGain(currentTraffic, lag);
             const cutoff = mapRange(currentTraffic, 0, 1, 2500, 150);
             setSynthFreq(cutoff, lag);
