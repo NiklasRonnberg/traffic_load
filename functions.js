@@ -44,6 +44,7 @@ const audioPlayers = [
 audioPlayers.forEach(p => { p.loop = true; p.volume = 0; });
 
 soundToggleBtn.addEventListener("click", () => {
+    initAudio();
     soundEnabled = !soundEnabled;
     soundToggleBtn.textContent = `Sound: ${soundEnabled ? "ON":"OFF"}`;
     if(soundEnabled){
