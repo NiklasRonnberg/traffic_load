@@ -56,10 +56,12 @@ soundToggleBtn.addEventListener("click", () => {
 synthToggleBtn.addEventListener("click", async () => {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        await createSyntSound();
     }
     if (audioContext.state === "suspended") {
         await audioContext.resume();
+    }
+    if (!synthGain) {  // ensure we only create it once
+        await createSyntSound();
     }
     synthEnabled = !synthEnabled;
     synthToggleBtn.textContent = `Synth: ${synthEnabled ? "ON":"OFF"}`;
