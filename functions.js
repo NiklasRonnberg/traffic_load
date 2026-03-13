@@ -56,7 +56,7 @@ soundToggleBtn.addEventListener("click", () => {
 synthToggleBtn.addEventListener("click", async () => {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        await createSyntSound(); // now await is valid because handler is async
+        await createSyntSound();
     }
     if (audioContext.state === "suspended") {
         await audioContext.resume();
@@ -84,13 +84,13 @@ function drawImage(){
 
 window.addEventListener("resize", resizeCanvas);
 
-// Mouse movement: max-weighted traffic
-canvas.addEventListener("mousemove", function(event){
+// Handle touch as mouse
+function handlePointer(x, y) {
     if(!imageLoaded) return;
 
     const rect = canvas.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
+    const mouseX = x - rect.left;
+    const mouseY = y - rect.top;
     const radius = 25;
 
     let maxWeightedTraffic = 0;
@@ -119,8 +119,24 @@ canvas.addEventListener("mousemove", function(event){
 
     currentTraffic = maxWeightedTraffic;
     infoBox.textContent = `Traffic: ${(currentTraffic*100).toFixed(1)}%`;
-});
+}
 
+
+// Mouse mouse
+canvas.addEventListener("mousemove", e => handlePointer(e.clientX, e.clientY));
+
+// Touch events
+canvas.addEventListener("touchstart", e => {
+    e.preventDefault(); // prevent scrolling
+    const touch = e.touches[0];
+    handlePointer(touch.clientX, touch.clientY);
+}, {passive: false});
+
+canvas.addEventListener("touchmove", e => {
+    e.preventDefault(); // prevent scrolling
+    const touch = e.touches[0];
+    handlePointer(touch.clientX, touch.clientY);
+}, {passive: false});
 
 function updateVolumes(){
     if (soundEnabled){
