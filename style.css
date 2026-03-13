@@ -12,8 +12,33 @@ canvas {
 #infoBox {
   position: fixed;
   top: 10px;
-  left: 10px;
+  left: 70px;
+  width: 120px;
   background: rgba(0,0,0,0.75);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  pointer-events: none;
+}
+#minBox {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  width: 30px;
+  background: hsl(70,100%,90%);
+  color: black;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  pointer-events: none;
+}
+#maxBox {
+  position: fixed;
+  top: 10px;
+  left: 220px;
+  width: 30px;
+  background: hsl(340, 100%, 25%);
   color: white;
   padding: 8px 12px;
   border-radius: 6px;
