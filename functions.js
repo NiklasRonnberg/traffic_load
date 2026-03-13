@@ -117,7 +117,7 @@ canvas.addEventListener("mousemove", function(event){
 
 
 function updateVolumes(){
-    if(soundEnabled){
+    if (soundEnabled){
         targetVolumes[0] = currentTraffic<=0.25 ? 0.2+0.8*(currentTraffic/0.25) : 1;
         targetVolumes[1] = currentTraffic<0.2 ? 0 : currentTraffic<=0.4 ? (currentTraffic-0.2)/0.2 : 1;
         targetVolumes[2] = currentTraffic<0.4 ? 0 : currentTraffic<=0.6 ? (currentTraffic-0.4)/0.2 : 1;
@@ -131,19 +131,23 @@ function updateVolumes(){
 
     const dt = 1/60;
     const lagTime = 1;
-    for(let i=0;i<audioPlayers.length;i++){
+    for (let i = 0; i < audioPlayers.length; i++){
         currentVolumes[i] += (targetVolumes[i]-currentVolumes[i])*dt/lagTime;
         audioPlayers[i].volume = currentVolumes[i];
         
     }
     if (synthGain && lfo) {
         let lag = 0.5;
-        setSynthGain(currentTraffic, lag);
-        const cutoff = mapRange(currentTraffic, 0, 1, 2500, 150);
-        setSynthFreq(cutoff, lag);
-        setSynthLfoFreq(5 * (1 - currentTraffic) + 0.1, lag);
-        setSynthLfoDepth(currentTraffic, lag);
-        setLfoMix(currentTraffic, lag);
+        if (synthEnable) {
+            setSynthGain(currentTraffic, lag);
+            const cutoff = mapRange(currentTraffic, 0, 1, 2500, 150);
+            setSynthFreq(cutoff, lag);
+            setSynthLfoFreq(5 * (1 - currentTraffic) + 0.1, lag);
+            setSynthLfoDepth(currentTraffic, lag);
+            setLfoMix(currentTraffic, lag);
+        } else {
+            setSynthGain(0, 1);
+        }
     }
     requestAnimationFrame(updateVolumes);
 }
