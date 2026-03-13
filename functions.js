@@ -15,6 +15,7 @@ let soundEnabled = false;
 let currentVolumes = [0,0,0,0,0,0,0];
 let targetVolumes  = [0,0,0,0,0,0,0];
 
+let synthStarted = false;
 let synthEnabled = false;
 let audioContext;
 let synthFilter;
@@ -60,8 +61,9 @@ synthToggleBtn.addEventListener("click", async () => {
     if (audioContext.state === "suspended") {
         await audioContext.resume();
     }
-    if (!synthGain) {  // ensure we only create it once
+    if (!synthStarted) {  // ensure we only create it once
         await createSyntSound();
+        synthStarted = true;
     }
     synthEnabled = !synthEnabled;
     synthToggleBtn.textContent = `Synth: ${synthEnabled ? "ON":"OFF"}`;
