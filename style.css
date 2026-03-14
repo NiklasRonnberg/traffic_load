@@ -32,6 +32,9 @@ canvas {
   border-radius: 6px;
   font-size: 14px;
   pointer-events: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 #maxBox {
   position: fixed;
@@ -44,6 +47,9 @@ canvas {
   border-radius: 6px;
   font-size: 14px;
   pointer-events: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 #soundToggle,
