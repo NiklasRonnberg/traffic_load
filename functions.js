@@ -65,7 +65,7 @@ noiseToggleBtn.addEventListener("click", async () => {
         await createSyntSound();
         noiseStarted = true;
     }
-    noisehEnabled = !noiseEnabled;
+    noiseEnabled = !noiseEnabled;
     noiseToggleBtn.textContent = `Noise: ${noiseEnabled ? "ON":"OFF"}`;
 });
 
@@ -165,7 +165,7 @@ function updateVolumes(){
     if (noiseGain && lfo) {
         let lag = 0.5;
         if (noiseEnabled) {
-            setNoisehGain(currentTraffic, lag);
+            setNoiseGain(currentTraffic, lag);
             const cutoff = mapRange(currentTraffic, 0, 1, 2500, 150);
             setNoiseFreq(cutoff, lag);
             setNoiseLfoFreq(5 * (1 - currentTraffic) + 0.1, lag);
@@ -280,7 +280,7 @@ async function createNoiseSound() {
 
     // --- Audio routing ---
     pinkNoiseNode.connect(noiseFilter);
-    noisehFilter.connect(ampGain);
+    noiseFilter.connect(ampGain);
     ampGain.connect(noiseGain);
     noiseGain.connect(audioCtx.destination);
 
@@ -291,7 +291,7 @@ async function createNoiseSound() {
 }
 
 function setNoiseGain(targetLevel, lagTime = 0) {
-    const now = noisehGain.context.currentTime;
+    const now = noiseGain.context.currentTime;
 
     noiseGain.gain.cancelScheduledValues(now);
     noiseGain.gain.setTargetAtTime(targetLevel, now, lagTime);
