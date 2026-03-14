@@ -91,11 +91,13 @@ window.addEventListener("resize", resizeCanvas);
 // Handle touch as mouse
 function handlePointer(x, y) {
     if(!imageLoaded) return;
-
+    
     const rect = canvas.getBoundingClientRect();
     const mouseX = x - rect.left;
     const mouseY = y - rect.top;
     const radius = 25;
+
+    console.log(ctx.getImageData(mouseX, mouseY, 1, 1).data);
 
     let maxWeightedTraffic = 0;
 
