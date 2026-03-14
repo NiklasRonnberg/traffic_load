@@ -62,7 +62,7 @@ noiseToggleBtn.addEventListener("click", async () => {
         await audioContext.resume();
     }
     if (!noiseStarted) {  // ensure we only create it once
-        await createSyntSound();
+        await createNoiseSound();
         noiseStarted = true;
     }
     noiseEnabled = !noiseEnabled;
