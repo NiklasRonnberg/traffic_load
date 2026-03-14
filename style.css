@@ -14,7 +14,7 @@ canvas {
   top: 10px;
   left: 70px;
   width: 120px;
-  background: rgba(0,0,0,0.75);
+  background: rgba(25, 25, 25, 0.75);
   color: white;
   padding: 8px 12px;
   border-radius: 6px;
@@ -26,7 +26,7 @@ canvas {
   top: 10px;
   left: 10px;
   width: 30px;
-  background: hsl(60,100%,85%);
+  background: hsl(60, 100%, 85%, 0.75);
   color: black;
   padding: 8px 12px;
   border-radius: 6px;
@@ -41,7 +41,7 @@ canvas {
   top: 10px;
   left: 220px;
   width: 30px;
-  background: hsl(348, 100%, 37%);
+  background: hsl(348, 100%, 37%, 0.75);
   color: white;
   padding: 8px 12px;
   border-radius: 6px;
@@ -55,7 +55,7 @@ canvas {
 #soundToggle,
 #noiseToggle,
 #synthToggle {
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(25, 25, 25, 0.75);
   color: white;
   border: none;
   border-radius: 4px;

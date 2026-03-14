@@ -126,22 +126,23 @@ function handlePointer(x, y) {
 
     let maxWeightedTraffic = 0;
 
-    for(let dx=-radius; dx<=radius; dx++){
-        for(let dy=-radius; dy<=radius; dy++){
+    for(let dx = -radius; dx <= radius; dx++){
+        for(let dy = -radius; dy <= radius; dy++){
             const dist = Math.sqrt(dx*dx + dy*dy);
             if(dist <= radius){
                 const px = Math.round(mouseX + dx);
                 const py = Math.round(mouseY + dy);
-                if(px>=0 && py>=0 && px<canvas.width && py<canvas.height){
+                if(px >= 0 && py >= 0 && px < canvas.width && py < canvas.height){
                     const pixel = ctx.getImageData(px, py, 1, 1).data;
                     const hsv = rgbToHsv(pixel[0], pixel[1], pixel[2]);
                     const hue = hsv.h;
-                    if(hsv.s>25 && ((hue>=0 && hue<=maxHue)||(hue>=minHue && hue<=360))){
+                    if(hsv.s > 25 && ((hue >= 0 && hue <= maxHue) || (hue >= minHue && hue <= 360))){
                         const trafficValue = hueToTraffic(hue);
                         const distanceFactor = 1 - dist/radius;
                         const weightedTraffic = trafficValue * distanceFactor;
                         maxWeightedTraffic = Math.max(maxWeightedTraffic, weightedTraffic);
-                    }
+                    } 
+                    
                 }
             }
         }
@@ -149,7 +150,19 @@ function handlePointer(x, y) {
 
     currentTraffic = maxWeightedTraffic;
     infoBox.textContent = `Traffic: ${(currentTraffic*100).toFixed(1)}%`;
+    if (currentTraffic == 0) {
+        infoBox.style.backgroundColor = 'rgba(25, 25, 25, 0.75)';
+        infoBox.style.color = 'rgb(255, 255, 255)';
+    } else {
+        infoBox.style.backgroundColor = trafficLevelToHsl(currentTraffic);
+        if (currentTraffic <= 0.5) {
+            infoBox.style.color = 'rgb(0, 0, 0)';
+        } else {
+            infoBox.style.color = 'rgb(255, 255, 255)';
+        }
+    }
 }
+
 
 
 // Mouse mouse
@@ -204,7 +217,6 @@ function updateVolumes(){
     if (synthGain) {
         let lag = 0.5;
         if (synthEnabled) {
-            console.log(currentTraffic);
             setSynthGain(currentTraffic * 0.1 + synthDefaultGain, lag);
             if (currentTraffic > 0) {
                 setSynthDetune((currentTraffic - 0.1) * 25, 1);
@@ -241,6 +253,23 @@ function hueToTraffic(h){
     if(h>=minHue) hAdj -= 360;
     const traffic = (maxHue - hAdj)/(maxHue - (minHue-360));
     return Math.max(0, Math.min(1, traffic));
+}
+
+function trafficLevelToHsl(trafficLevel) {
+    const hueStart = 60;   // yellow
+    const hueEnd = 348;    // red
+    const lightStart = 85; // %
+    const lightEnd = 37;   // %
+
+    // Calculate hue difference going "backwards" (negative direction)
+    let hueDiff = hueEnd - hueStart;
+    if (hueDiff > 180) hueDiff -= 360; // choose shortest path around wheel
+    if (hueDiff < -180) hueDiff += 360;
+
+    const hue = (hueStart + hueDiff * trafficLevel + 360) % 360;
+    const light = lightStart + (lightEnd - lightStart) * trafficLevel;
+
+    return `hsl(${hue}, 100%, ${light}%, 0.75)`;
 }
 
 async function initAudio() {
