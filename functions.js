@@ -204,7 +204,7 @@ async function initAudio() {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
     if (audioContext) {
-        createSynthSound();
+        createNoiseSound();
     }
 }
 
