@@ -97,8 +97,6 @@ function handlePointer(x, y) {
     const mouseY = y - rect.top;
     const radius = 25;
 
-    console.log(ctx.getImageData(mouseX, mouseY, 1, 1).data);
-
     let maxWeightedTraffic = 0;
 
     for(let dx=-radius; dx<=radius; dx++){
