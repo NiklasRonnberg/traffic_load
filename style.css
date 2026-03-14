@@ -26,7 +26,7 @@ canvas {
   top: 10px;
   left: 10px;
   width: 30px;
-  background: hsl(70,100%,90%);
+  background: hsl(60,100%,85%);
   color: black;
   padding: 8px 12px;
   border-radius: 6px;
@@ -38,7 +38,7 @@ canvas {
   top: 10px;
   left: 220px;
   width: 30px;
-  background: hsl(348, 100%, 74%);
+  background: hsl(348, 100%, 37%);
   color: white;
   padding: 8px 12px;
   border-radius: 6px;
