@@ -53,7 +53,8 @@ canvas {
 }
 
 #soundToggle,
-#noiseToggle {
+#noiseToggle,
+#synthToggle {
   background: rgba(0, 0, 0, 0.75);
   color: white;
   border: none;
@@ -68,16 +69,23 @@ canvas {
 #soundToggle {
   position: fixed;
   top: 10px;
-  right: 140px;
+  right: 270px;
 }
 
 #noiseToggle {
+  position: fixed;
+  top: 10px;
+  right: 140px;
+}
+
+#synthToggle {
   position: fixed;
   top: 10px;
   right: 10px;
 }
 
 #soundToggle:hover,
-#noiseToggle:hover {
+#noiseToggle:hover,
+#synthToggle:hover {
   background: rgba(255, 255, 255, 0.1);
 }

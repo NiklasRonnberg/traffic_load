@@ -7,6 +7,7 @@ img.src = "assets/traffic.png";
 let scale=1, offsetY=0, imageLoaded=false;
 const soundToggleBtn = document.getElementById("soundToggle");
 const noiseToggleBtn = document.getElementById("noiseToggle");
+const synthToggleBtn = document.getElementById("synthToggle");
 
 const minHue = 340;
 const maxHue = 70;
@@ -29,6 +30,15 @@ let lfoMix = 0;
 let lfoMixGain1;
 let lfoMixGain2;
 let lfoSum;
+
+let synthStarted = false;
+let synthEnabled = false;
+let tone1Osc1, tone1Osc2, tone1Osc3;
+let tone2Osc1, tone2Osc2, tone2Osc3;
+let synthGain;
+let synthDefaultGain = 0.01;
+let deTune = 0;
+let tone2Detune = 0;
 
 let currentTraffic = 0;
 
@@ -55,8 +65,9 @@ soundToggleBtn.addEventListener("click", () => {
 });
 
 noiseToggleBtn.addEventListener("click", async () => {
-    if (!audioContext) {
+   if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        await audioContext.audioWorklet.addModule('pinknoise.js');
     }
     if (audioContext.state === "suspended") {
         await audioContext.resume();
@@ -67,6 +78,22 @@ noiseToggleBtn.addEventListener("click", async () => {
     }
     noiseEnabled = !noiseEnabled;
     noiseToggleBtn.textContent = `Noise: ${noiseEnabled ? "ON":"OFF"}`;
+});
+
+synthToggleBtn.addEventListener("click", async () => {
+   if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        await audioContext.audioWorklet.addModule('pinknoise.js');
+    }
+    if (audioContext.state === "suspended") {
+        await audioContext.resume();
+    }
+    if (!synthStarted) {  // ensure we only create it once
+        await createSynthSound();
+        synthStarted = true;
+    }
+    synthEnabled = !synthEnabled;
+    synthToggleBtn.textContent = `Synth: ${synthEnabled ? "ON":"OFF"}`;
 });
 
 
@@ -174,6 +201,23 @@ function updateVolumes(){
             setNoiseGain(0, 1);
         }
     }
+    if (synthGain) {
+        let lag = 0.5;
+        if (synthEnabled) {
+            console.log(currentTraffic);
+            setSynthGain(currentTraffic * 0.1 + synthDefaultGain, lag);
+            if (currentTraffic > 0) {
+                setSynthDetune((currentTraffic - 0.1) * 25, 1);
+                setTone2Detune((currentTraffic - 0.1) * 250, 1);
+            } else {
+                setSynthDetune(1, 1);
+                setTone2Detune(0, 1);
+            }
+        } else {
+            setSynthGain(0, 1);
+        }
+        
+    }
     requestAnimationFrame(updateVolumes);
 }
 updateVolumes();
@@ -205,6 +249,7 @@ async function initAudio() {
     }
     if (audioContext) {
         createNoiseSound();
+        createSynthSound();
     }
 }
 
@@ -225,7 +270,6 @@ async function createNoiseSound() {
     noiseFilter.Q.value = 1;
 
     // --- Pink noise worklet ---
-    await audioCtx.audioWorklet.addModule('pinknoise.js');
     const pinkNoiseNode = new AudioWorkletNode(audioCtx, 'pink-noise-processor');
 
     // --- AM parameters ---
@@ -310,7 +354,7 @@ function setNoiseLfoFreq(targetFreq, lagTime = 0) {
     lfo.frequency.setTargetAtTime(targetFreq, now, lagTime);
 }
 
-function setNoiseLfoDepth(depth = 0, lagTime = 0.25) {
+function setNoiseLfoDepth(depth = 0, lagTime) {
     const now = lfoGainNode.context.currentTime;
     const amplitudeRange = depth / 2;
     const offset = 1 - amplitudeRange;
@@ -341,4 +385,95 @@ function setLfoMix(mix, lagTime = 0.1) {
 
 function mapRange(value, inMin, inMax, outMin, outMax) {
     return outMin + (value - inMin) * (outMax - outMin) / (inMax - inMin);
+}
+
+async function createSynthSound(detuneValue = 10) {
+    if (!audioContext) return;
+
+    const audioCtx = audioContext;
+    const now = audioCtx.currentTime;
+
+    deTune = detuneValue;
+
+    synthGain = audioCtx.createGain();
+    synthGain.gain.cancelScheduledValues(now);
+    synthGain.gain.setValueAtTime(0, now);
+    synthGain.gain.exponentialRampToValueAtTime(synthDefaultGain, now + 1);
+
+    // --- Tone 1 : 261.63 Hz ---
+    tone1Osc1 = audioCtx.createOscillator();
+    tone1Osc2 = audioCtx.createOscillator();
+    tone1Osc3 = audioCtx.createOscillator();
+
+    tone1Osc1.type = "triangle";
+    tone1Osc2.type = "triangle";
+    tone1Osc3.type = "triangle";
+
+    tone1Osc1.frequency.setValueAtTime(261.63, now);
+    tone1Osc2.frequency.setValueAtTime(261.63, now);
+    tone1Osc3.frequency.setValueAtTime(261.63, now);
+
+    tone1Osc1.detune.setValueAtTime(0, now);
+    tone1Osc2.detune.setValueAtTime(deTune, now);
+    tone1Osc3.detune.setValueAtTime(-deTune, now);
+
+    // --- Tone 2 : 392 Hz ---
+    tone2Osc1 = audioCtx.createOscillator();
+    tone2Osc2 = audioCtx.createOscillator();
+    tone2Osc3 = audioCtx.createOscillator();
+
+    tone2Osc1.type = "triangle";
+    tone2Osc2.type = "triangle";
+    tone2Osc3.type = "triangle";
+
+    tone2Osc1.frequency.setValueAtTime(392.00, now);
+    tone2Osc2.frequency.setValueAtTime(392.00, now);
+    tone2Osc3.frequency.setValueAtTime(392.00, now);
+
+    tone2Osc1.detune.setValueAtTime(tone2Detune, now);
+    tone2Osc2.detune.setValueAtTime(tone2Detune + deTune, now);
+    tone2Osc3.detune.setValueAtTime(tone2Detune - deTune, now);
+
+    // --- Connect ---
+    tone1Osc1.connect(synthGain);
+    tone1Osc2.connect(synthGain);
+    tone1Osc3.connect(synthGain);
+
+    tone2Osc1.connect(synthGain);
+    tone2Osc2.connect(synthGain);
+    tone2Osc3.connect(synthGain);
+
+    synthGain.connect(audioCtx.destination);
+
+    // --- Start oscillators ---
+    tone1Osc1.start(now);
+    tone1Osc2.start(now);
+    tone1Osc3.start(now);
+
+    tone2Osc1.start(now);
+    tone2Osc2.start(now);
+    tone2Osc3.start(now);
+}
+
+function setSynthDetune(value = 0, lagTime = 0) {
+    const now = audioContext.currentTime;
+
+    tone1Osc2.detune.setTargetAtTime(value, now, lagTime);
+    tone1Osc3.detune.setTargetAtTime(-value, now, lagTime);
+
+    tone2Osc2.detune.setTargetAtTime(tone2Detune + value, now, lagTime);
+    tone2Osc3.detune.setTargetAtTime(tone2Detune - value, now, lagTime);
+}
+
+function setSynthGain(value, lagTime = 0) {
+    const now = synthGain.context.currentTime;
+    synthGain.gain.setTargetAtTime(value, now, lagTime);
+}
+
+function setTone2Detune(value = 0, lagTime = 0) {
+    const now = audioContext.currentTime;
+
+    tone2Osc1.detune.setTargetAtTime(tone2Detune, now, lagTime);
+    tone2Osc2.detune.setTargetAtTime(tone2Detune + value, now, lagTime);
+    tone2Osc3.detune.setTargetAtTime(tone2Detune - value, now, lagTime);
 }
