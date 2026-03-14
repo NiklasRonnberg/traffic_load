@@ -54,7 +54,7 @@ soundToggleBtn.addEventListener("click", () => {
     }
 });
 
-noisehToggleBtn.addEventListener("click", async () => {
+noiseToggleBtn.addEventListener("click", async () => {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
