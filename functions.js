@@ -109,8 +109,6 @@ function handlePointer(x, y) {
                     const pixel = ctx.getImageData(px, py, 1, 1).data;
                     const hsv = rgbToHsv(pixel[0], pixel[1], pixel[2]);
                     const hue = hsv.h;
-                    console.log(hsv);
-
                     if(hsv.s>25 && ((hue>=0 && hue<=maxHue)||(hue>=minHue && hue<=360))){
                         const trafficValue = hueToTraffic(hue);
                         const distanceFactor = 1 - dist/radius;
