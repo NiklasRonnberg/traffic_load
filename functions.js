@@ -63,10 +63,10 @@ noisehToggleBtn.addEventListener("click", async () => {
     }
     if (!noiseStarted) {  // ensure we only create it once
         await createSyntSound();
-        synthStarted = true;
+        noiseStarted = true;
     }
-    synthEnabled = !synthEnabled;
-    synthToggleBtn.textContent = `Noise: ${synthEnabled ? "ON":"OFF"}`;
+    noisehEnabled = !noiseEnabled;
+    noiseToggleBtn.textContent = `Noise: ${noiseEnabled ? "ON":"OFF"}`;
 });
 
 
@@ -162,17 +162,17 @@ function updateVolumes(){
         audioPlayers[i].volume = currentVolumes[i];
         
     }
-    if (synthGain && lfo) {
+    if (noiseGain && lfo) {
         let lag = 0.5;
-        if (synthEnabled) {
-            setSynthGain(currentTraffic, lag);
+        if (noiseEnabled) {
+            setNoisehGain(currentTraffic, lag);
             const cutoff = mapRange(currentTraffic, 0, 1, 2500, 150);
-            setSynthFreq(cutoff, lag);
-            setSynthLfoFreq(5 * (1 - currentTraffic) + 0.1, lag);
-            setSynthLfoDepth(currentTraffic, lag);
+            setNoiseFreq(cutoff, lag);
+            setNoiseLfoFreq(5 * (1 - currentTraffic) + 0.1, lag);
+            setNoiseLfoDepth(currentTraffic, lag);
             setLfoMix(currentTraffic, lag);
         } else {
-            setSynthGain(0, 1);
+            setNoiseGain(0, 1);
         }
     }
     requestAnimationFrame(updateVolumes);
