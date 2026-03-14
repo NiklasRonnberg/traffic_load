@@ -66,7 +66,7 @@ synthToggleBtn.addEventListener("click", async () => {
         synthStarted = true;
     }
     synthEnabled = !synthEnabled;
-    synthToggleBtn.textContent = `Synth: ${synthEnabled ? "ON":"OFF"}`;
+    synthToggleBtn.textContent = `Noise: ${synthEnabled ? "ON":"OFF"}`;
 });
 
 
