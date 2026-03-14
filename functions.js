@@ -6,7 +6,7 @@ const img = new Image();
 img.src = "assets/traffic.png";
 let scale=1, offsetY=0, imageLoaded=false;
 const soundToggleBtn = document.getElementById("soundToggle");
-const synthToggleBtn = document.getElementById("synthToggle");
+const noiseToggleBtn = document.getElementById("noiseToggle");
 
 const minHue = 340;
 const maxHue = 70;
@@ -15,11 +15,11 @@ let soundEnabled = false;
 let currentVolumes = [0,0,0,0,0,0,0];
 let targetVolumes  = [0,0,0,0,0,0,0];
 
-let synthStarted = false;
-let synthEnabled = false;
+let noiseStarted = false;
+let noiseEnabled = false;
 let audioContext;
-let synthFilter;
-let synthGain;
+let noiseFilter;
+let noiseGain;
 let lfo;
 let lfoGainNode;
 let lfoOffset;
@@ -54,14 +54,14 @@ soundToggleBtn.addEventListener("click", () => {
     }
 });
 
-synthToggleBtn.addEventListener("click", async () => {
+noisehToggleBtn.addEventListener("click", async () => {
     if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
     if (audioContext.state === "suspended") {
         await audioContext.resume();
     }
-    if (!synthStarted) {  // ensure we only create it once
+    if (!noiseStarted) {  // ensure we only create it once
         await createSyntSound();
         synthStarted = true;
     }
@@ -209,21 +209,21 @@ async function initAudio() {
     }
 }
 
-async function createSyntSound() {
+async function createNoiseSound() {
     if (!audioContext) return;
 
     const audioCtx = audioContext;
     const now = audioCtx.currentTime;
 
     // --- Gain (output level) ---
-    synthGain = audioCtx.createGain();
-    synthGain.gain.value = 0;
+    noiseGain = audioCtx.createGain();
+    noiseGain.gain.value = 0;
 
     // --- Bandpass filter ---
-    synthFilter = audioCtx.createBiquadFilter();
-    synthFilter.type = "bandpass";
-    synthFilter.frequency.value = 1500;
-    synthFilter.Q.value = 1;
+    noiseFilter = audioCtx.createBiquadFilter();
+    noiseFilter.type = "bandpass";
+    noiseFilter.frequency.value = 1500;
+    noiseFilter.Q.value = 1;
 
     // --- Pink noise worklet ---
     await audioCtx.audioWorklet.addModule('pinknoise.js');
@@ -279,10 +279,10 @@ async function createSyntSound() {
     lfoSum.connect(ampGain.gain);
 
     // --- Audio routing ---
-    pinkNoiseNode.connect(synthFilter);
-    synthFilter.connect(ampGain);
-    ampGain.connect(synthGain);
-    synthGain.connect(audioCtx.destination);
+    pinkNoiseNode.connect(noiseFilter);
+    noisehFilter.connect(ampGain);
+    ampGain.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
 
     // --- Start modulation sources ---
     lfo.start(now);
@@ -290,28 +290,28 @@ async function createSyntSound() {
     lfoOffset.start(now);
 }
 
-function setSynthGain(targetLevel, lagTime = 0) {
-    const now = synthGain.context.currentTime;
+function setNoiseGain(targetLevel, lagTime = 0) {
+    const now = noisehGain.context.currentTime;
 
-    synthGain.gain.cancelScheduledValues(now);
-    synthGain.gain.setTargetAtTime(targetLevel, now, lagTime);
+    noiseGain.gain.cancelScheduledValues(now);
+    noiseGain.gain.setTargetAtTime(targetLevel, now, lagTime);
 }
 
-function setSynthFreq(targetFreq, lagTime = 0) {
-    const now = synthFilter.context.currentTime;
+function setNoiseFreq(targetFreq, lagTime = 0) {
+    const now = noiseFilter.context.currentTime;
 
-    synthFilter.frequency.cancelScheduledValues(now);
-    synthFilter.frequency.setTargetAtTime(targetFreq, now, lagTime);
+    noiseFilter.frequency.cancelScheduledValues(now);
+    noiseFilter.frequency.setTargetAtTime(targetFreq, now, lagTime);
 }
 
-function setSynthLfoFreq(targetFreq, lagTime = 0) {
+function setNoiseLfoFreq(targetFreq, lagTime = 0) {
     const now = lfo.context.currentTime;
 
     lfo.frequency.cancelScheduledValues(now);
     lfo.frequency.setTargetAtTime(targetFreq, now, lagTime);
 }
 
-function setSynthLfoDepth(depth = 0, lagTime = 0.25) {
+function setNoiseLfoDepth(depth = 0, lagTime = 0.25) {
     const now = lfoGainNode.context.currentTime;
     const amplitudeRange = depth / 2;
     const offset = 1 - amplitudeRange;
