@@ -104,7 +104,7 @@ function resizeCanvas(){
     canvas.height = window.innerHeight;
     if(!imageLoaded) return;
     scale = canvas.width/img.width;
-    offsetY = (canvas.height - img.height*scale)/2;
+    offsetY = canvas.height / 2) - (img.height * scale / 2);
     drawImage();
 }
 
